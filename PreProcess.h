@@ -4,16 +4,39 @@
 #include <Image.h>
 #include <itkImageFileReader.h>
 #include <itkImageFileWriter.h>
+#include <itkSigmoidImageFilter.h>
 #include <itkRescaleIntensityImageFilter.h>
+#include <itkCurvatureAnisotropicDiffusionImageFilter.h>
 
-#include <itkMeanImageFilter.h>
-#include <itkSubtractImageFilter.h>
 
-#include <itkCurvatureFlowImageFilter.h>
+class PreProcess
+{
+    
+public:
+    
+    PreProcess();
+    ~PreProcess();
+    
+    //Main Run function to run all the functions
+    void RunPreProcess(std::string inputFilename, std::string outputFilename, float lowerThreshold, float upperThreshold, float alpha, float beta);
+    
+protected:
+    
+private:
+    
+    typedef itk::Image<float, 3>  ImageType;
+    
+    //Original Input Image
+    ImageType::Pointer OriginalImage;
+    
+    //Function for non-linearly remapping the image
+    ImageType::Pointer nonLinearIntensityRemap(float lowerThreshold, float upperThreshold, float alpha, float beta);
+    
+    //Function to smooth the image
+    ImageType::Pointer SmoothImage(ImageType::Pointer remappedImage);
+    
+    
+};
 
-#include <itkResampleImageFilter.h>
-#include <itkAffineTransform.h>
-
-#include <time.h>
 
 #endif
