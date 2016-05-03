@@ -11,6 +11,6 @@ MESSAGE(FATAL_ERROR "ITK not found. Please set ITK_DIR.")
 
 ENDIF(ITK_FOUND) 
 
-ADD_EXECUTABLE(Liver-PreProcess MACOSX_BUNDLE PreProcess.cpp PreProcess.h) 
+ADD_EXECUTABLE(Liver-PreProcess MACOSX_BUNDLE main.cpp PreProcess.cpp PreProcess.h) 
 
 TARGET_LINK_LIBRARIES(Liver-PreProcess ${ITK_LIBRARIES})

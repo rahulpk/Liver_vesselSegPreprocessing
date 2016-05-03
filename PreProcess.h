@@ -1,11 +1,3 @@
-//
-//  PreProcess.h
-//  
-//
-//  Created by Rahul Kumar on 07/07/2014.
-//
-//
-
 #ifndef _PreProcess_h
 #define _PreProcess_h
 

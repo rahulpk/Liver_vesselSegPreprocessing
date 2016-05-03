@@ -1,10 +1,3 @@
-//
-//  PreProcess.cpp
-//  
-//
-//  Created by Rahul Kumar on 07/07/2014.
-//
-//
 
 #include "PreProcess.h"
 
