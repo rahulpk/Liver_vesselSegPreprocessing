@@ -7,6 +7,7 @@
 #include <itkSigmoidImageFilter.h>
 #include <itkRescaleIntensityImageFilter.h>
 #include <itkCurvatureAnisotropicDiffusionImageFilter.h>
+#include <itkGradientAnisotropicDiffusionImageFilter.h>
 #include <itkTimeProbe.h>
 
 
@@ -34,7 +35,10 @@ private:
     ImageType::Pointer nonLinearIntensityRemap(float lowerThreshold, float upperThreshold, float alpha, float beta);
     
     //Function to smooth the image
-    ImageType::Pointer SmoothImage(ImageType::Pointer remappedImage);
+    ImageType::Pointer curvatureSmoothImage(ImageType::Pointer remappedImage);
+    
+    //Function to smooth the image
+    ImageType::Pointer gradientSmoothImage(ImageType::Pointer remappedImage);
     
     
 };

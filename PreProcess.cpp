@@ -34,7 +34,7 @@ PreProcess::ImageType::Pointer PreProcess::nonLinearIntensityRemap(float lowerTh
     return rescale->GetOutput();
 }
 
-PreProcess::ImageType::Pointer PreProcess::SmoothImage(ImageType::Pointer remappedImage)
+PreProcess::ImageType::Pointer PreProcess::curvatureSmoothImage(ImageType::Pointer remappedImage)
 {
     const ImageType::SpacingType& sp = remappedImage->GetSpacing();
     float timeStep = sp[2]/(powf(2, 4));        //4 = Dimension + 1
@@ -52,7 +52,40 @@ PreProcess::ImageType::Pointer PreProcess::SmoothImage(ImageType::Pointer remapp
     SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
     smoothing->SetInput( remappedImage );
     smoothing->SetTimeStep( timeStep );
-    smoothing->SetNumberOfIterations(  10  );
+    smoothing->SetNumberOfIterations(  5  );
+    smoothing->SetConductanceParameter( 9.0 );
+    smoothing->Update();
+    
+    typedef itk::RescaleIntensityImageFilter< ImageType, ImageType > RescaleFilter;
+    RescaleFilter::Pointer rescale = RescaleFilter::New();
+    rescale->SetInput( smoothing->GetOutput() );
+    rescale->SetOutputMinimum(0.0f);
+    rescale->SetOutputMaximum(255.0f);
+    rescale->Update();
+    
+    
+    return rescale->GetOutput();
+}
+
+PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointer remappedImage)
+{
+    const ImageType::SpacingType& sp = remappedImage->GetSpacing();
+    float timeStep = sp[2]/(powf(2, 4));        //4 = Dimension + 1
+    std::cout<<"TimeStep = "<<timeStep<<std::endl;
+    
+    int numberOfIterations;
+    if (sp[2] >= 1.0f) {
+        numberOfIterations = 5;
+    }
+    else {
+        numberOfIterations = 10;
+    }
+    
+    typedef   itk::GradientAnisotropicDiffusionImageFilter< ImageType, ImageType >  SmoothingFilterType;
+    SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
+    smoothing->SetInput( remappedImage );
+    smoothing->SetTimeStep( timeStep );
+    smoothing->SetNumberOfIterations(  5  );
     smoothing->SetConductanceParameter( 9.0 );
     smoothing->Update();
     
@@ -86,7 +119,7 @@ void PreProcess::RunPreProcess(std::string inputFilename, std::string outputFile
     ImageType::Pointer remappedImage = nonLinearIntensityRemap(lowerThreshold, upperThreshold, alpha, beta);
     
     //smooth the image
-    ImageType::Pointer smoothedImage = SmoothImage(remappedImage);
+    ImageType::Pointer smoothedImage = gradientSmoothImage(remappedImage);
     
     typedef itk::ImageFileWriter<ImageType> WriterType;
     WriterType::Pointer writer = WriterType::New();
