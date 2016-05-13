@@ -7,6 +7,7 @@
 #include <itkSigmoidImageFilter.h>
 #include <itkRescaleIntensityImageFilter.h>
 #include <itkCurvatureAnisotropicDiffusionImageFilter.h>
+#include <itkTimeProbe.h>
 
 
 class PreProcess
