@@ -85,7 +85,7 @@ PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointe
     SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
     smoothing->SetInput( remappedImage );
     smoothing->SetTimeStep( timeStep );
-    smoothing->SetNumberOfIterations(  5  );
+    smoothing->SetNumberOfIterations(  numberOfIterations  );
     smoothing->SetConductanceParameter( 9.0 );
     smoothing->Update();
     
