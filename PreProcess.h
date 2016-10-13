@@ -1,7 +1,7 @@
 #ifndef _PreProcess_h
 #define _PreProcess_h
 
-#include <Image.h>
+#include <itkImage.h>
 #include <itkImageFileReader.h>
 #include <itkImageFileWriter.h>
 #include <itkSigmoidImageFilter.h>
@@ -9,6 +9,16 @@
 #include <itkCurvatureAnisotropicDiffusionImageFilter.h>
 #include <itkGradientAnisotropicDiffusionImageFilter.h>
 #include <itkTimeProbe.h>
+#include <itkResampleImageFilter.h>
+#include <itkAffineTransform.h>
+#include <itkLinearInterpolateImageFunction.h>
+
+#include <itkOpenCLUtil.h>
+#include <itkGPUImage.h>
+#include <itkGPUKernelManager.h>
+#include <itkGPUContextManager.h>
+#include <itkGPUImageToImageFilter.h>
+#include <itkGPUGradientAnisotropicDiffusionImageFilter.h>
 
 
 class PreProcess
@@ -26,7 +36,7 @@ protected:
     
 private:
     
-    typedef itk::Image<float, 3>  ImageType;
+    typedef itk::GPUImage<float, 3>  ImageType;
     
     //Original Input Image
     ImageType::Pointer OriginalImage;
@@ -39,6 +49,8 @@ private:
     
     //Function to smooth the image
     ImageType::Pointer gradientSmoothImage(ImageType::Pointer remappedImage);
+    
+    ImageType::Pointer resampleImage(ImageType::Pointer smoothedImage);
     
     
 };

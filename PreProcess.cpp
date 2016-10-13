@@ -70,24 +70,38 @@ PreProcess::ImageType::Pointer PreProcess::curvatureSmoothImage(ImageType::Point
 PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointer remappedImage)
 {
     const ImageType::SpacingType& sp = remappedImage->GetSpacing();
-    float timeStep = sp[2]/(powf(2, 4));        //4 = Dimension + 1
-    std::cout<<"TimeStep = "<<timeStep<<std::endl;
-    
-    int numberOfIterations;
-    if (sp[2] >= 1.0f) {
-        numberOfIterations = 5;
+    float min_Spacing = sp[0];
+    if (min_Spacing > sp[1]) {
+        min_Spacing = sp[1];
     }
-    else {
-        numberOfIterations = 10;
+    if (min_Spacing > sp[2]){
+        min_Spacing = sp[2];
     }
+    float timeStep = min_Spacing/(powf(2, 4));        //4 = Dimension + 1
+    int numberOfIterations = 30;
+    float conductance = 20.0f;
     
-    typedef   itk::GradientAnisotropicDiffusionImageFilter< ImageType, ImageType >  SmoothingFilterType;
-    SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
+//    //testing for MR
+//    numberOfIterations = 10;
+//    conductance = 10.0f;
+    
+    //GPU Smoothing
+    typedef itk::GPUGradientAnisotropicDiffusionImageFilter< ImageType, ImageType > GPUAnisoDiffFilterType;
+    typename GPUAnisoDiffFilterType::Pointer smoothing = GPUAnisoDiffFilterType::New();
     smoothing->SetInput( remappedImage );
+    smoothing->SetNumberOfIterations( numberOfIterations );
     smoothing->SetTimeStep( timeStep );
-    smoothing->SetNumberOfIterations(  numberOfIterations  );
-    smoothing->SetConductanceParameter( 9.0 );
+    smoothing->SetConductanceParameter( conductance );
+    smoothing->UseImageSpacingOn();
     smoothing->Update();
+    
+//    typedef   itk::GradientAnisotropicDiffusionImageFilter< ImageType, ImageType >  SmoothingFilterType;
+//    SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
+//    smoothing->SetInput( remappedImage );
+//    smoothing->SetTimeStep( timeStep );
+//    smoothing->SetNumberOfIterations(  numberOfIterations  );
+//    smoothing->SetConductanceParameter( 9.0 );
+//    smoothing->Update();
     
     typedef itk::RescaleIntensityImageFilter< ImageType, ImageType > RescaleFilter;
     RescaleFilter::Pointer rescale = RescaleFilter::New();
@@ -98,6 +112,61 @@ PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointe
     
     
     return rescale->GetOutput();
+}
+
+PreProcess::ImageType::Pointer PreProcess::resampleImage(ImageType::Pointer smoothedImage)
+{
+    std::cout << "resampleImage" << std::endl;
+    
+    typedef itk::Image<ImageType::PixelType,3> CPUImageType;
+    
+    typedef itk::ResampleImageFilter< CPUImageType, ImageType >  FilterType;
+    FilterType::Pointer filter = FilterType::New();
+    
+    typedef itk::AffineTransform< double, 3 >  TransformType;
+    TransformType::Pointer transform = TransformType::New();
+    //transform->SetIdentity();
+    filter->SetTransform( transform );
+    
+    typedef itk::LinearInterpolateImageFunction< CPUImageType, double >  InterpolatorType;
+    InterpolatorType::Pointer interpolator = InterpolatorType::New();
+    filter->SetInterpolator( interpolator );
+    
+    filter->SetDefaultPixelValue( 0 );
+    
+    const ImageType::SpacingType& sp = smoothedImage->GetSpacing();
+    float min_Spacing = sp[0];
+    if (min_Spacing > sp[1]) {
+        min_Spacing = sp[1];
+    }
+    if (min_Spacing > sp[2]){
+        min_Spacing = sp[2];
+    }
+    ImageType::SpacingType newSp;
+    newSp[0] = min_Spacing;
+    newSp[1] = min_Spacing;
+    newSp[2] = min_Spacing;
+    std::cout<<"new spacing"<<newSp<<std::endl;
+    
+    filter->SetOutputSpacing( newSp );
+    filter->SetOutputOrigin( smoothedImage->GetOrigin() );
+    
+    ImageType::DirectionType direction;
+    direction.SetIdentity();
+    filter->SetOutputDirection( direction );
+    
+    ImageType::SizeType   NewSize;
+    NewSize[0] = int((double(smoothedImage->GetLargestPossibleRegion().GetSize()[0])*double(smoothedImage->GetSpacing()[0]))/double(newSp[0]));  // number of pixels along X
+    NewSize[1] = int((double(smoothedImage->GetLargestPossibleRegion().GetSize()[1])*double(smoothedImage->GetSpacing()[1]))/double(newSp[1]));  // number of pixels along Y
+    NewSize[2] = int((double(smoothedImage->GetLargestPossibleRegion().GetSize()[2])*double(smoothedImage->GetSpacing()[2]))/double(newSp[2]));  // number of pixels along Z
+    std::cout<<"new size"<<NewSize<<std::endl;
+    filter->SetSize( NewSize );
+    
+    filter->SetInput( smoothedImage );
+    filter->Update();
+    std::cout<<"Done resampleImage"<<std::endl;
+    
+    return filter->GetOutput();
 }
 
 
@@ -121,9 +190,12 @@ void PreProcess::RunPreProcess(std::string inputFilename, std::string outputFile
     //smooth the image
     ImageType::Pointer smoothedImage = gradientSmoothImage(remappedImage);
     
+    // resample the smoothed image to isotropic image voxels
+    ImageType::Pointer resampledImage = resampleImage(smoothedImage);
+    
     typedef itk::ImageFileWriter<ImageType> WriterType;
     WriterType::Pointer writer = WriterType::New();
-    writer->SetInput( smoothedImage );
+    writer->SetInput( resampledImage );
     writer->SetFileName(outputFilename);
     writer->Update();
     
