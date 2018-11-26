@@ -30,7 +30,7 @@ public:
     ~PreProcess();
     
     //Main Run function to run all the functions
-    void RunPreProcess(std::string inputFilename, std::string outputFilename, float lowerThreshold, float upperThreshold, float alpha, float beta);
+    void RunPreProcess(std::string inputFilename, std::string outputFilename, float lowerThreshold, float upperThreshold, float alpha, float beta, float conductance, int numberOfInterations);
     
 protected:
     
@@ -44,11 +44,11 @@ private:
     //Function for non-linearly remapping the image
     ImageType::Pointer nonLinearIntensityRemap(float lowerThreshold, float upperThreshold, float alpha, float beta);
     
-    //Function to smooth the image
-    ImageType::Pointer curvatureSmoothImage(ImageType::Pointer remappedImage);
+//    //Function to smooth the image
+//    ImageType::Pointer curvatureSmoothImage(ImageType::Pointer remappedImage);
     
     //Function to smooth the image
-    ImageType::Pointer gradientSmoothImage(ImageType::Pointer remappedImage);
+    ImageType::Pointer gradientSmoothImage(ImageType::Pointer remappedImage, float conductance, int numberOfInterations);
     
     ImageType::Pointer resampleImage(ImageType::Pointer smoothedImage);
     

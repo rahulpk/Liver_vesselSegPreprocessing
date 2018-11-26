@@ -34,40 +34,40 @@ PreProcess::ImageType::Pointer PreProcess::nonLinearIntensityRemap(float lowerTh
     return rescale->GetOutput();
 }
 
-PreProcess::ImageType::Pointer PreProcess::curvatureSmoothImage(ImageType::Pointer remappedImage)
-{
-    const ImageType::SpacingType& sp = remappedImage->GetSpacing();
-    float timeStep = sp[2]/(powf(2, 4));        //4 = Dimension + 1
-    std::cout<<"TimeStep = "<<timeStep<<std::endl;
-    
-    int numberOfIterations;
-    if (sp[2] >= 1.0f) {
-        numberOfIterations = 5;
-    }
-    else {
-        numberOfIterations = 10;
-    }
-    
-    typedef   itk::CurvatureAnisotropicDiffusionImageFilter< ImageType, ImageType >  SmoothingFilterType;
-    SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
-    smoothing->SetInput( remappedImage );
-    smoothing->SetTimeStep( timeStep );
-    smoothing->SetNumberOfIterations(  5  );
-    smoothing->SetConductanceParameter( 9.0 );
-    smoothing->Update();
-    
-    typedef itk::RescaleIntensityImageFilter< ImageType, ImageType > RescaleFilter;
-    RescaleFilter::Pointer rescale = RescaleFilter::New();
-    rescale->SetInput( smoothing->GetOutput() );
-    rescale->SetOutputMinimum(0.0f);
-    rescale->SetOutputMaximum(255.0f);
-    rescale->Update();
-    
-    
-    return rescale->GetOutput();
-}
+//PreProcess::ImageType::Pointer PreProcess::curvatureSmoothImage(ImageType::Pointer remappedImage, float conductance, int numberOfIterations)
+//{
+//    const ImageType::SpacingType& sp = remappedImage->GetSpacing();
+//    float timeStep = sp[2]/(powf(2, 4));        //4 = Dimension + 1
+//    std::cout<<"TimeStep = "<<timeStep<<std::endl;
+//
+//    int numberOfIterations;
+//    if (sp[2] >= 1.0f) {
+//        numberOfIterations = 5;
+//    }
+//    else {
+//        numberOfIterations = 10;
+//    }
+//
+//    typedef   itk::CurvatureAnisotropicDiffusionImageFilter< ImageType, ImageType >  SmoothingFilterType;
+//    SmoothingFilterType::Pointer smoothing = SmoothingFilterType::New();
+//    smoothing->SetInput( remappedImage );
+//    smoothing->SetTimeStep( timeStep );
+//    smoothing->SetNumberOfIterations(  5  );
+//    smoothing->SetConductanceParameter( 9.0 );
+//    smoothing->Update();
+//
+//    typedef itk::RescaleIntensityImageFilter< ImageType, ImageType > RescaleFilter;
+//    RescaleFilter::Pointer rescale = RescaleFilter::New();
+//    rescale->SetInput( smoothing->GetOutput() );
+//    rescale->SetOutputMinimum(0.0f);
+//    rescale->SetOutputMaximum(255.0f);
+//    rescale->Update();
+//
+//
+//    return rescale->GetOutput();
+//}
 
-PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointer remappedImage)
+PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointer remappedImage, float conductance, int numberOfIterations)
 {
     const ImageType::SpacingType& sp = remappedImage->GetSpacing();
     float min_Spacing = sp[0];
@@ -78,12 +78,9 @@ PreProcess::ImageType::Pointer PreProcess::gradientSmoothImage(ImageType::Pointe
         min_Spacing = sp[2];
     }
     float timeStep = min_Spacing/(powf(2, 4));        //4 = Dimension + 1
-    int numberOfIterations = 30;
-    float conductance = 20.0f;
-    
-//    //testing for MR
-//    numberOfIterations = 10;
-//    conductance = 10.0f;
+//    int numberOfIterations = 10; //30
+//    float conductance = 8.0f;   //30
+
     
     //GPU Smoothing
     typedef itk::GPUGradientAnisotropicDiffusionImageFilter< ImageType, ImageType > GPUAnisoDiffFilterType;
@@ -170,12 +167,8 @@ PreProcess::ImageType::Pointer PreProcess::resampleImage(ImageType::Pointer smoo
 }
 
 
-void PreProcess::RunPreProcess(std::string inputFilename, std::string outputFilename, float lowerThreshold, float upperThreshold, float alpha, float beta)
+void PreProcess::RunPreProcess(std::string inputFilename, std::string outputFilename, float lowerThreshold, float upperThreshold, float alpha, float beta, float conductance, int numberOfIterations)
 {
-  
-    itk::TimeProbe clock1;
-    clock1.Start();
-    
     //Read Input Image
     typedef itk::ImageFileReader< ImageType > ReaderType;
     ReaderType::Pointer reader  = ReaderType::New();
@@ -184,23 +177,33 @@ void PreProcess::RunPreProcess(std::string inputFilename, std::string outputFile
     
     OriginalImage = reader->GetOutput();
     
+    
+    itk::TimeProbe clock1;
+    clock1.Start();
+    
     //Calculate remapped image to get the vessel intensiy range enhanced
+    std::cout<< std::endl <<"Intensity Remapping ..."<<std::endl;
     ImageType::Pointer remappedImage = nonLinearIntensityRemap(lowerThreshold, upperThreshold, alpha, beta);
+    std::cout<< " Done (1/3)"<< std::endl;
     
     //smooth the image
-    ImageType::Pointer smoothedImage = gradientSmoothImage(remappedImage);
+    std::cout<< std::endl <<"Smoothing ..."<<std::endl;
+    ImageType::Pointer smoothedImage = gradientSmoothImage(remappedImage, conductance, numberOfIterations);
+    std::cout<< " Done (2/3)"<< std::endl;
     
     // resample the smoothed image to isotropic image voxels
+    std::cout<< std::endl <<"Resampling ..."<<std::endl;
     ImageType::Pointer resampledImage = resampleImage(smoothedImage);
+    std::cout<< " Done (3/3)"<< std::endl;
+    
+    clock1.Stop();
+    std::cout<< std::endl<<"Total Time taken for Preprocessing Image = "<< clock1.GetMean() <<"sec\n"<< std::endl;
+    
     
     typedef itk::ImageFileWriter<ImageType> WriterType;
     WriterType::Pointer writer = WriterType::New();
     writer->SetInput( resampledImage );
     writer->SetFileName(outputFilename);
     writer->Update();
-    
-    clock1.Stop();
-    
-    std::cout<< std::endl<<"Total Time taken for Running = "<< clock1.GetMean() <<"sec\n"<< std::endl;
     
 }
